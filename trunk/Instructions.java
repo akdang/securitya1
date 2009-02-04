@@ -43,7 +43,7 @@ public class Instructions {
 	        in = new Scanner(new File("HalInstructions"));
 	
 	        while (in.hasNext()) {
-	            String nextInstruction = in.useDelimiter("\n").next().toLowerCase().trim();
+	            String nextInstruction = in.useDelimiter("\n").next().toLowerCase();
 	            
 	            StringTokenizer nextInstructionTokens = new StringTokenizer(nextInstruction, " ", false);
 	            ArrayList<String> tokensToBeParsed = new ArrayList<String>();
@@ -51,6 +51,7 @@ public class Instructions {
 	            while(nextInstructionTokens.hasMoreTokens()) {
 	            	String nextToken = nextInstructionTokens.nextToken();
 	            	tokensToBeParsed.add(nextToken);
+	            	System.out.println(nextToken);
 	            }
 	            
 	            parseInstruction(tokensToBeParsed);
@@ -67,19 +68,22 @@ public class Instructions {
 	}
 	
 	public static Instructions parseInstruction(ArrayList<String> tokensToBeParsed) {
-		
 		int size = tokensToBeParsed.size();
-		String command = tokensToBeParsed.get(0);
+		
+		String command = "";
 		String obj = "";
 		int value = -1; 
 		
+		if (size >= 1) {
+			 command = tokensToBeParsed.get(0);
+		}
 		if(size >= 2) {
 			obj = tokensToBeParsed.get(1);
 		}
-		else if(size >= 3) {
+		if(size >= 3) {
 			value = Integer.parseInt(tokensToBeParsed.get(2));
 		}
-		else {
+		if(size >= 4) {
 			System.out.println("badinstruction");
 			return new Instructions(commands.BADINSTRUCTION, "", -1);
 		}
@@ -90,94 +94,36 @@ public class Instructions {
 			return instruction;
 		}
 		
-		else if(command.contains(READ)) {
-			if(obj.contains(LOBJ)) {
-				Instructions instruction = new Instructions(commands.READ, LOBJ, -1);
-				System.out.println(instruction.getCommand() + " " + instruction.getObj());
-				return instruction;
-			}
-			else if(obj.contains(HOBJ)) {
-				Instructions instruction = new Instructions(commands.READ, HOBJ, -1);
+		if(command.contains(READ) && size <= 2) {
+			if(obj.equals(LOBJ) || obj.equals(HOBJ)) {
+				Instructions instruction = new Instructions(commands.READ, obj, -1);
 				System.out.println(instruction.getCommand() + " " + instruction.getObj());
 				return instruction;
 			}
 		}
+		else {
+			System.out.println("badinstruction");
+			return new Instructions(commands.BADINSTRUCTION, "", -1);
+		}
 		
-		else if(command.contains(WRITE)) {
-			if(obj.contains(LOBJ)) {
-				Instructions instruction = new Instructions(commands.WRITE, LOBJ, value);
+		if(command.contains(WRITE) && size <= 3) {
+			if(obj.equals(LOBJ) || obj.equals(HOBJ)) {
+				Instructions instruction = new Instructions(commands.WRITE, obj, value);
 				System.out.println(instruction.getCommand() + " " + instruction.getObj() + " " + instruction.getValue());
 				return instruction;
 			}
 		}
-	
+		else {
+			System.out.println("badinstruction");
+			return new Instructions(commands.BADINSTRUCTION, "", -1);
+		}
+			
+		System.out.println("badinstruction");
 		return new Instructions(commands.BADINSTRUCTION, "", -1);
 		
 	}
 }
 
-//		
-//		// test for READ/WRITE/SLEEP commands
-//		if(!nextInstruction.contains(WRITE) && 
-//				!nextInstruction.contains(READ) && 
-//				!nextInstruction.contains(SLEEP))
-//			return false;
-//		
-//		
-//		// test for valid requested object
-//		if(!nextInstruction.contains(LOBJ) && 
-//				!nextInstruction.contains(HOBJ))
-//			return false;
-//		
-//		// test for correct number of arguments
-//		if (nextInstruction.contains(LOBJ)) {
-//			
-//			if(nextInstruction.contains(READ)) {
-//				String[] lobjSplit = nextInstruction.split(LOBJ);
-//				for(String nextToken : lobjSplit) {
-//					System.out.println(nextToken.trim());
-//					if(!nextToken.trim().isEmpty() && !nextToken.trim().contains(READ))
-//						return false;
-//				}
-//			}
-//			
-//			else {
-//				String[] lobjSplit = nextInstruction.split(LOBJ);
-//				for(String nextToken : lobjSplit) {
-//					System.out.println(nextToken.trim());
-//					if(!nextToken.trim().isEmpty() && !nextToken.trim().contains(WRITE))
-//						return false;
-//				}
-//			}
-//				
-//		}
-//		
-//		else if (nextInstruction.contains(HOBJ)){private
-//			
-//			if(nextInstruction.contains(READ)) {
-//				String[] lobjSplit = nextInstruction.split(HOBJ);
-//				for(String nextToken : lobjSplit) {
-//					System.out.println(nextToken.trim());
-//					if(!nextToken.trim().isEmpty() && !nextToken.trim().contains(READ))
-//						return false;
-//				}
-//			}
-//			
-//			else {
-//				String[] lobjSplit = nextInstruction.split(HOBJ);
-//				for(String nextToken : lobjSplit) {
-//					System.out.println(nextToken.trim());
-//					if(!nextToken.trim().isEmpty() && !nextToken.trim().contains(WRITE))
-//						return false;
-//				}//	}
-	//}
-//			}
-//		}
-//
-//		
-//		return true;
-//	}
-//}
 
 
 

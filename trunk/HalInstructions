@@ -1,0 +1,8 @@
+           sleep
+read lobj
+read lobj 1
+write lobj 10
+write lobj
+
+write hobj 322 323
+
