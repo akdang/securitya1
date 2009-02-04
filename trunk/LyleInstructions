@@ -6,5 +6,5 @@ write lobj
 
 write hobj 322 323
 read hobj
-write hobj 999999
+write hobj 235435
 read                lobj 
