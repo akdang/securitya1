@@ -1,4 +1,5 @@
 import java.util.*;
+import java.io.*;
 
 class ConcSecureSystem {
 
@@ -25,7 +26,6 @@ class ConcSecureSystem {
     lyle.start();
 	hal.start();
 
-    rm.printer();
     } // main
 }
 
@@ -35,24 +35,6 @@ class ReferenceMonitor
     private HashMap<String, SecurityLevel> objectLevels;
     private HashMap<String, SecurityLevel> subjectLevels;
 
-    //delete me
-    public void printer()
-    {
-        Iterator<String> it = objectLevels.keySet().iterator();
-        while(it.hasNext())
-        {
-            String tmp = it.next();
-            System.out.println("obj: " + tmp + "\tlvl: " + objectLevels.get(tmp));
-        }
-
-        it = subjectLevels.keySet().iterator();
-        while(it.hasNext())
-        {
-            String tmp = it.next();
-            System.out.println("subj: " + tmp + "\tlvl: " + subjectLevels.get(tmp));
-        }
-    }
-
     public ReferenceMonitor()
     {
         om = new ObjectManager();
@@ -60,9 +42,50 @@ class ReferenceMonitor
         subjectLevels = new HashMap<String, SecurityLevel>();
     }
 
-    public synchronized void executeInstruction(String name, Instruction i)
+    public synchronized int executeInstruction(String name, Instruction instr)
     {
-        System.out.println("Executing instruction " + i + " for " + name + ".");
+        SecurityLevel subjectLevel = subjectLevels.get(name);
+        SecurityLevel objectLevel = objectLevels.get(instr.getObjName());
+        int value = -1; //default for bad instruction
+        
+        System.out.println();
+
+        switch(instr.getCommand())
+        {
+            case READ:
+                System.out.println(name + " reads " + instr.getObjName() + ".");
+                if(subjectLevel.compareTo(objectLevel) >= 0)
+                {
+                    value = om.readObjectVal(instr.getObjName());
+                    System.out.println("Access Granted.  Value read: " + value);
+                }
+                else
+                   System.out.println("Access Denied.");
+                break;
+
+            case WRITE:
+                System.out.println(name + " writes " + instr.getValue() + " to " + instr.getObjName() + ".");
+                if(subjectLevel.compareTo(objectLevel) <= 0)
+                {
+                    om.setObjectVal(instr.getObjName(), instr.getValue());
+                    value = om.readObjectVal(instr.getObjName());
+                    System.out.println("Access Granted.  Value written: " + value);
+                }
+                else
+                   System.out.println("Access Denied.");
+                break;
+        
+            case SLEEP: System.out.println(name + " sleeping.  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%GETOUTAHERE%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+                break;
+
+            default: System.out.println(name + " gave bad instruction.");
+                break;
+        }
+
+        System.out.println("Current State: lobj = " + om.readObjectVal("lobj") + "; hobj = " + om.readObjectVal("hobj"));
+
+        return value;
+
     }
     
     public void addSubjectLevel(String name, SecurityLevel s)
@@ -81,7 +104,6 @@ class ReferenceMonitor
     }
     
     
-
     private class ObjectManager
     {
         private HashMap<String,SecureObject> objects;
@@ -149,12 +171,47 @@ class SecureSubject extends Thread
     private ReferenceMonitor referenceMonitor;
     private ArrayList<Instruction> instructions;
 
-    public SecureSubject(String name, SecurityLevel s, String fileName, ReferenceMonitor r)
+    public SecureSubject(String name, SecurityLevel s, String fileName, ReferenceMonitor r) 
     {
         this.name = name;
         this.securityLevel = s;
         this.referenceMonitor = r;
-        this.instructions = new ArrayList<Instruction>();
+        instructions = new ArrayList<Instruction>();
+
+        Scanner in = null;
+	    try 
+        {
+	        in = new Scanner(new File(fileName));
+	        in.useDelimiter("\n");
+
+	        while (in.hasNext()) 
+            {
+	            String nextInstruction = in.next().toLowerCase().trim();
+	            
+                if(nextInstruction.isEmpty())
+                    continue;
+
+	            StringTokenizer nextInstructionTokens = new StringTokenizer(nextInstruction, " ", false);
+	            ArrayList<String> tokensToBeParsed = new ArrayList<String>();
+	            
+	            while(nextInstructionTokens.hasMoreTokens()) 
+                {
+	            	String nextToken = nextInstructionTokens.nextToken();
+	            	tokensToBeParsed.add(nextToken);
+	            }
+	            instructions.add(Instruction.parseInstruction(tokensToBeParsed));
+	        }
+	    } 
+        catch (FileNotFoundException e) 
+        {
+			System.err.println("File Not Found!");
+            System.exit(1);
+		}
+        finally 
+        {
+            if(in!=null)
+    	        in.close();
+	    }
     }
 
     public void run()
@@ -163,25 +220,83 @@ class SecureSubject extends Thread
 
         for(Instruction i: instructions)
         {
-            referenceMonitor.executeInstruction(name, i);
+            int value = referenceMonitor.executeInstruction(name, i);
         }
     }
 }
 
-class Instruction {
-    String s;
-    public String toString() { return s; }
-    public Instruction()
+enum SecurityLevel {LOW, HIGH}
+
+enum Command {WRITE, READ, SLEEP, BADINSTRUCTION}
+
+class Instruction {	
+	public static final String WRITE = "write";
+	public static final String READ = "read";
+	public static final String SLEEP = "sleep";
+	public static final String LOBJ = "lobj";
+	public static final String HOBJ = "hobj";
+	
+	private Command command;
+    private	String obj;
+    private	int value;
+	
+	Instruction(Command command, String obj, int value)
     {
-        this.s = "blank";
-    }
+		this.command = command;
+		this.obj = obj;
+		this.value = value;
+	}
+	
+	public Command getCommand() 
+    {
+		return command;
+	}
+	
+	public String getObjName() 
+    {
+		return obj;
+	}
+	
+	public int getValue() 
+    {
+		return value;
+	}
+	
+	public static Instruction parseInstruction(ArrayList<String> tokensToBeParsed) 
+    {
+	    	
+		int size = tokensToBeParsed.size();
+		
+        if(size == 1)       //SLEEP
+        {
+            if(tokensToBeParsed.get(0).equals(SLEEP))
+                return new Instruction(Command.SLEEP, "" ,  -1);
+        }
+		else if(size == 2)  //READ
+        {
+            if(tokensToBeParsed.get(0).equals(READ))
+                if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
+                    return new Instruction(Command.READ, tokensToBeParsed.get(1),  -1);
+		}
+		else if(size == 3)  //WRITE
+        {
+			if(tokensToBeParsed.get(0).equals(WRITE))
+            {
+                if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
+                {
+                    try
+                    {
+                        int val = Integer.parseInt(tokensToBeParsed.get(2));
+                        return new Instruction(Command.WRITE, tokensToBeParsed.get(1),  val);
+                    }
+                    catch (NumberFormatException e)
+                    {
+                        return new Instruction(Command.BADINSTRUCTION, "", -1);
+                    }
 
-    public Instruction(String s)
-    { this.s = s;
+                }
+            }
+		}
+        return new Instruction(Command.BADINSTRUCTION, "", -1);
     }
-}
-
-enum SecurityLevel
-{
-    HIGH, LOW
 }
