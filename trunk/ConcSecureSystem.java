@@ -92,6 +92,12 @@ class ReferenceMonitor
     {
         subjectLevels.put(name, s);
     }
+
+    public SecurityLevel getSubjectLevel(String name)
+    {
+        assert subjectLevels.get(name) != null : "No object mapped to key \"" + name + "\".";
+        return subjectLevels.get(name);
+    }
     
     public void addObjectLevel(String name, SecurityLevel s)
     {
