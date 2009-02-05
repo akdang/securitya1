@@ -1,3 +1,9 @@
+/**
+ * CS361 Computer Secutity - Assignment 1
+ * Authored by Khoi Dang and Chris Cunningham
+ */
+
+
 import java.util.*;
 import java.io.*;
 
