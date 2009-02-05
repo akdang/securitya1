@@ -1,40 +1,56 @@
 import java.util.*;
 import java.io.*;
 
-class ConcSecureSystem {
+enum SecurityLevel {LOW, HIGH}
 
+enum Command {WRITE, READ, SLEEP, BADINSTRUCTION}
+
+/**
+ * Class implements Bell-LaPadula model.
+ */
+public class ConcSecureSystem 
+{
+	/**
+	 * Entry point for program execution.
+	 * @param args
+	 */
     public static void main (String args[]) 
     {
-	ReferenceMonitor rm = new ReferenceMonitor();
+		ReferenceMonitor rm = new ReferenceMonitor();
+		
+		SecureSubject hal = new SecureSubject("Hal", SecurityLevel.HIGH, "HalInstructions", rm);
+		rm.addSubjectLevel("Hal", SecurityLevel.HIGH);
 	
-	// Create a high level subject Hal getting instructions from the file "HalInstructions"
-	SecureSubject hal = new SecureSubject("Hal", SecurityLevel.HIGH, "HalInstructions", rm);
-	rm.addSubjectLevel("Hal", SecurityLevel.HIGH);
-
-	// Create a low level subject Lyle getting instructions from the file "LyleInstructions"
-	SecureSubject lyle = new SecureSubject("Lyle", SecurityLevel.LOW, "LyleInstructions", rm);
-	rm.addSubjectLevel("Lyle", SecurityLevel.LOW);
-
-	// Create a high level object lobj with initial value 0
-	rm.createNewObject("hobj", 0);
-	rm.addObjectLevel("hobj", SecurityLevel.HIGH);
-
-	// Create a low level object lobj with initial value 0
-	rm.createNewObject("lobj", 0);
-	rm.addObjectLevel("lobj", SecurityLevel.LOW);
-
-    lyle.start();
-	hal.start();
-
-    } // main
+		SecureSubject lyle = new SecureSubject("Lyle", SecurityLevel.LOW, "LyleInstructions", rm);
+		rm.addSubjectLevel("Lyle", SecurityLevel.LOW);
+	
+		rm.createNewObject("hobj", 0);
+		rm.addObjectLevel("hobj", SecurityLevel.HIGH);
+	
+		rm.createNewObject("lobj", 0);
+		rm.addObjectLevel("lobj", SecurityLevel.LOW);
+	
+	    lyle.start();
+		hal.start();
+    }
 }
 
+/**
+ * RefernceMonitor controls all subject access to objects.
+ */
 class ReferenceMonitor 
 {
+	/* Each instance of ReferenceMonitor has its own object manager. 
+	 * This design ensures that the objects cannot be accessed by going around the ReferenceMonitor */
     private ObjectManager om;
+    
+    //hashes containing security levels for objects and subjects
     private HashMap<String, SecurityLevel> objectLevels;
     private HashMap<String, SecurityLevel> subjectLevels;
 
+    /**
+     * Constructs instance of ReferenceMonitor.
+     */
     public ReferenceMonitor()
     {
         om = new ObjectManager();
@@ -42,21 +58,30 @@ class ReferenceMonitor
         subjectLevels = new HashMap<String, SecurityLevel>();
     }
 
+    /**
+     * Executes instr only if the security levels of the subject and object in question
+     * are such that the operation is permitted under the rules of Simple Security (reading) and 
+     * the *-property (writing). 
+     * @param name describes subject executing instruction
+     * @param instr instruction subject wishes to execute
+     * @return 0 if bad instruction given, read access denied, or write performed
+     * @return value read if read access granted
+     */
     public synchronized int executeInstruction(String name, Instruction instr)
     {
         SecurityLevel subjectLevel = subjectLevels.get(name);
-        SecurityLevel objectLevel = objectLevels.get(instr.getObjName());
-        int value = -1; //default for bad instruction
+        SecurityLevel objectLevel = objectLevels.get(instr.getObjectName());
+        int value = 0; //default for bad instruction
         
         System.out.println();
 
         switch(instr.getCommand())
         {
             case READ:
-                System.out.println(name + " reads " + instr.getObjName() + ".");
+                System.out.println(name + " reading " + instr.getObjectName() + ".");
                 if(subjectLevel.compareTo(objectLevel) >= 0)
                 {
-                    value = om.readObjectVal(instr.getObjName());
+                    value = om.getObjectValue(instr.getObjectName());
                     System.out.println("Access Granted.  Value read: " + value);
                 }
                 else
@@ -64,11 +89,11 @@ class ReferenceMonitor
                 break;
 
             case WRITE:
-                System.out.println(name + " writes " + instr.getValue() + " to " + instr.getObjName() + ".");
+                System.out.println(name + " writing " + instr.getValue() + " to " + instr.getObjectName() + ".");
                 if(subjectLevel.compareTo(objectLevel) <= 0)
                 {
-                    om.setObjectVal(instr.getObjName(), instr.getValue());
-                    value = om.readObjectVal(instr.getObjName());
+                    om.setObjectValue(instr.getObjectName(), instr.getValue());
+                    value = om.getObjectValue(instr.getObjectName());
                     System.out.println("Access Granted.  Value written: " + value);
                 }
                 else
@@ -82,94 +107,169 @@ class ReferenceMonitor
                 break;
         }
 
-        System.out.println("Current State: lobj = " + om.readObjectVal("lobj") + "; hobj = " + om.readObjectVal("hobj"));
+        System.out.println("Current State: lobj = " + om.getObjectValue("lobj") + "; hobj = " + om.getObjectValue("hobj"));
 
         return value;
-
     }
     
+    /**
+     * Add subject name and security level to be maintained by ReferenceMonitor.
+     * @param name subject name
+     * @param s subject security level
+     */
     public void addSubjectLevel(String name, SecurityLevel s)
     {
         subjectLevels.put(name, s);
     }
-
+    
+    /**
+     * Get security level for subject.
+     * @precondition name provide must be valid name of subject known to reference monitor
+     * @param name subjects name
+     * @return SecurityLevel of subject
+     */
     public SecurityLevel getSubjectLevel(String name)
     {
-        assert subjectLevels.get(name) != null : "No object mapped to key \"" + name + "\".";
+        assert subjectLevels.get(name) != null : "No subject mapped to key \"" + name + "\".";
         return subjectLevels.get(name);
     }
     
+    /**
+     * Add object name and security level to be maintained by ReferenceMonitor.
+     * @param name object name
+     * @param s object security level
+     */
     public void addObjectLevel(String name, SecurityLevel s)
     {
         objectLevels.put(name, s);
     }
 
-    public void createNewObject(String name, int val)
+    /**
+     * Get security level for object.
+     * @precondition name provided must be valid name of object known to reference monitor
+     * @param name object's name
+     * @return security level of object
+     */
+    public SecurityLevel getObjectLevel(String name)
     {
-        om.createNewObject(name, val);
+    	assert objectLevels.get(name) != null : "No object mapped to key \"" + name + "\".";
+    	return objectLevels.get(name);
     }
+
+    /**
+     * Instructs underlying object manager to create a new object.
+     * @param name object's name
+     * @param value object's value
+     */
+    public void createNewObject(String name, int value)
+    {
+        om.createNewObject(name, value);
+    }
+
+
     
-    
+    /**
+     * Class manages creation, modification and reading of objects.
+     */
     private class ObjectManager
     {
+    	//Map of objects managed
         private HashMap<String,SecureObject> objects;
 
+        /**
+         * Default constructor.
+         */
         private ObjectManager()
         {
             objects = new HashMap<String,SecureObject>();
         }
-
-        private void createNewObject(String name, int val)
+        
+        /**
+         * Creates new object to be managed by manager.
+         * @param name object's name
+         * @param value object's value
+         */
+        private void createNewObject(String name, int value)
         {
-            objects.put(name, new SecureObject(name, val));
+            objects.put(name, new SecureObject(name, value));
         }
 
-        private void setObjectVal(String name, int val)
+        /**
+         * Sets value of described object
+         * @param name object's name
+         * @param value to be set
+         */
+        private void setObjectValue(String name, int value)
         {
             SecureObject tmp = objects.get(name);
             assert (tmp != null) : "No object mapped to key \"" + name + "\".";
 
-            tmp.setVal(val);
+            tmp.setVal(value);
         }
 
-        private int readObjectVal(String name)
+        /**
+         * Gets value of given object.
+         * @param name object's name
+         * @return value of object
+         */
+        private int getObjectValue(String name)
         {
             SecureObject tmp = objects.get(name);
             assert (tmp != null) : "No object mapped to key \"" + name + "\".";
             
-            return tmp.getVal();
+            return tmp.getValue();
         }
 
+        /**
+         * Class defines objects.
+         */
         private class SecureObject
         {
             private String name;
-            private int val;
+            private int value;
 
-            private SecureObject(String name, int val)
+            /**
+             * Constructor
+             * @param name object's name
+             * @param value object's value
+             */
+            private SecureObject(String name, int value)
             {
                 this.name = name;
-                this.val = val;
+                this.value = value;
             }
 
-            private String getName()
+            /**
+             * @return object name
+             */
+			private String getName()
             {
                 return name;
             }
 
-            private int getVal()
+			/**
+			 * @return object value
+			 */
+            private int getValue()
             {
-                return val;
+                return value;
             }
 
-            private void setVal(int val)
+            /**
+             * Set this object's value
+             * @param value new value to be set
+             */
+            private void setVal(int value)
             {
-                this.val = val;
+                this.value = value;
             }
-        }
-    }
+        }//SecureObject
+    }//ObjectManager
+}//ReferenceMonitor
 
-}
-
+/*
+ * Defines subjects.
+ */
 class SecureSubject extends Thread
 {
     private String name;
@@ -177,11 +277,18 @@ class SecureSubject extends Thread
     private ReferenceMonitor referenceMonitor;
     private ArrayList<Instruction> instructions;
 
+    /**
+     * Constructor. Reads in file to determine subject instructions
+     * @param name subject name
+     * @param s subject security level
+     * @param fileName name of file containing instructions
+     * @param r reference monitor controlling subject access to objects
+     */
     public SecureSubject(String name, SecurityLevel s, String fileName, ReferenceMonitor r) 
     {
         this.name = name;
-        this.securityLevel = s;
-        this.referenceMonitor = r;
+        securityLevel = s;
+        referenceMonitor = r;
         instructions = new ArrayList<Instruction>();
 
         Scanner in = null;
@@ -192,25 +299,22 @@ class SecureSubject extends Thread
 
 	        while (in.hasNext()) 
             {
-	            String nextInstruction = in.next().toLowerCase().trim();
+	            String nextInstruction = in.next().toLowerCase().trim();	//ignoring case and edge white space
 	            
-                if(nextInstruction.isEmpty())
-                    continue;
-
-	            StringTokenizer nextInstructionTokens = new StringTokenizer(nextInstruction, " ", false);
+	            StringTokenizer nextInstructionTokens = new StringTokenizer(nextInstruction, " ", false);	//single instruction into parts
 	            ArrayList<String> tokensToBeParsed = new ArrayList<String>();
 	            
-	            while(nextInstructionTokens.hasMoreTokens()) 
+	            while(nextInstructionTokens.hasMoreTokens())	//populating ArrayList with tokens
                 {
 	            	String nextToken = nextInstructionTokens.nextToken();
 	            	tokensToBeParsed.add(nextToken);
 	            }
-	            instructions.add(Instruction.parseInstruction(tokensToBeParsed));
+	            instructions.add(Instruction.parseInstruction(tokensToBeParsed));	//parsing instruction, adding to list of subject instructions
 	        }
 	    } 
         catch (FileNotFoundException e) 
         {
-			System.err.println("File Not Found!");
+			System.err.println("File " + fileName + " not found! Exiting.");
             System.exit(1);
 		}
         finally 
@@ -219,8 +323,36 @@ class SecureSubject extends Thread
     	        in.close();
 	    }
     }
+    
+    /**
+     * @return subject's name
+     */
+    public String getSubjectName() 
+    {
+		return name;
+	}
 
-    public void run()
+    /**
+     * @return subject's security level
+     */
+	public SecurityLevel getSecurityLevel() 
+	{
+		return securityLevel;
+	}
+
+	/**
+	 * @return subject's reference monitor
+	 */
+	public ReferenceMonitor getReferenceMonitor() 
+	{
+		return referenceMonitor;
+	}
+
+	/**
+	 * Invoked when subject thread's start() method executed.
+	 * Attempts to execute instructions in file, passing them to the reference monitor.
+	 */
+	public void run()
     {
         System.out.println(name + " starting up.");
 
@@ -231,11 +363,8 @@ class SecureSubject extends Thread
     }
 }
 
-enum SecurityLevel {LOW, HIGH}
-
-enum Command {WRITE, READ, SLEEP, BADINSTRUCTION}
-
-class Instruction {	
+class Instruction 
+{	
 	public static final String WRITE = "write";
 	public static final String READ = "read";
 	public static final String SLEEP = "sleep";
@@ -243,13 +372,13 @@ class Instruction {
 	public static final String HOBJ = "hobj";
 	
 	private Command command;
-    private	String obj;
+    private	String objName;
     private	int value;
 	
-	Instruction(Command command, String obj, int value)
+	Instruction(Command command, String objName, int value)
     {
 		this.command = command;
-		this.obj = obj;
+		this.objName = objName;
 		this.value = value;
 	}
 	
@@ -258,9 +387,9 @@ class Instruction {
 		return command;
 	}
 	
-	public String getObjName() 
+	public String getObjectName() 
     {
-		return obj;
+		return objName;
 	}
 	
 	public int getValue() 
@@ -270,36 +399,29 @@ class Instruction {
 	
 	public static Instruction parseInstruction(ArrayList<String> tokensToBeParsed) 
     {
-	    	
 		int size = tokensToBeParsed.size();
 		
-        if(size == 1)       //SLEEP
+        if(size == 1 && tokensToBeParsed.get(0).equals(SLEEP))		//SLEEP
         {
-            if(tokensToBeParsed.get(0).equals(SLEEP))
-                return new Instruction(Command.SLEEP, "" ,  -1);
+            return new Instruction(Command.SLEEP, "" ,  -1);
         }
-		else if(size == 2)  //READ
+		else if(size == 2 && tokensToBeParsed.get(0).equals(READ))  //READ
         {
-            if(tokensToBeParsed.get(0).equals(READ))
-                if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
-                    return new Instruction(Command.READ, tokensToBeParsed.get(1),  -1);
+            if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
+                return new Instruction(Command.READ, tokensToBeParsed.get(1),  -1);
 		}
-		else if(size == 3)  //WRITE
+		else if(size == 3 && tokensToBeParsed.get(0).equals(WRITE))	//WRITE
         {
-			if(tokensToBeParsed.get(0).equals(WRITE))
+            if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
             {
-                if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
+                try
                 {
-                    try
-                    {
-                        int val = Integer.parseInt(tokensToBeParsed.get(2));
-                        return new Instruction(Command.WRITE, tokensToBeParsed.get(1),  val);
-                    }
-                    catch (NumberFormatException e)
-                    {
-                        return new Instruction(Command.BADINSTRUCTION, "", -1);
-                    }
-
+                    int value = Integer.parseInt(tokensToBeParsed.get(2));
+                    return new Instruction(Command.WRITE, tokensToBeParsed.get(1),  value);
+                }
+                catch (NumberFormatException e)
+                {
+                    return new Instruction(Command.BADINSTRUCTION, "", -1);
                 }
             }
 		}
