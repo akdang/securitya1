@@ -1,10 +1,10 @@
-           sleep
+
 read lobj
 read lobj 1
-write Lobj 10
-write lobj
-
+write Lobj 1111111
+write lobj 99y=mx+b99
+           sleep
 write hobj 322 323
-read Hobj
+read hObJ
 write hobj 235435
-read                lobj 
+read                LOBJ 

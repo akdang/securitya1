@@ -374,6 +374,9 @@ class SecureSubject extends Thread
     }
 }
 
+/**
+ * Constructor class to parse in the instructions from file.
+ */
 class Instruction 
 {	
 	public static final String WRITE = "write";
@@ -386,6 +389,13 @@ class Instruction
     private	String objName;
     private	int value;
 	
+    /**
+     * Constructor for Instruction Objects.
+     * 
+     * @param command command in the instruction (sleep, read, write, or bad instruction)
+     * @param objName name of the object (hobj or lobj)
+     * @param value value for write command
+     */
 	Instruction(Command command, String objName, int value)
     {
 		this.command = command;
@@ -393,35 +403,51 @@ class Instruction
 		this.value = value;
 	}
 	
+	/**
+	 * @return instruction's command: sleep, read, write, or bad instruction.
+	 */
 	public Command getCommand() 
     {
 		return command;
 	}
 	
+	/**
+	 * @return instruction's object name: hobj or lobj.
+	 */
 	public String getObjectName() 
     {
 		return objName;
 	}
 	
+	/**
+	 * @return instruction's value for write command.
+	 */
 	public int getValue() 
     {
 		return value;
 	}
 	
+	/**
+	 * Method that determines validity of instruction, and then creates
+	 * an appropriate Instruction object based on the command given.
+	 * 
+	 * @param tokensToBeParsed ArrayList of instruction tokens from file
+	 * @return new Instruction object
+	 */
 	public static Instruction parseInstruction(ArrayList<String> tokensToBeParsed) 
     {
-		int size = tokensToBeParsed.size();
+		int size = tokensToBeParsed.size();		// validity determined by number of tokens
 		
-        if(size == 1 && tokensToBeParsed.get(0).equals(SLEEP))		//SLEEP
+        if(size == 1 && tokensToBeParsed.get(0).equals(SLEEP))		//SLEEP can have only 1 token
         {
             return new Instruction(Command.SLEEP, "" ,  -1);
         }
-		else if(size == 2 && tokensToBeParsed.get(0).equals(READ))  //READ
+		else if(size == 2 && tokensToBeParsed.get(0).equals(READ))  //READ can have only 2 tokens
         {
             if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
                 return new Instruction(Command.READ, tokensToBeParsed.get(1),  -1);
 		}
-		else if(size == 3 && tokensToBeParsed.get(0).equals(WRITE))	//WRITE
+		else if(size == 3 && tokensToBeParsed.get(0).equals(WRITE))	//WRITE can have only 3 tokens
         {
             if(tokensToBeParsed.get(1).equals(LOBJ) || tokensToBeParsed.get(1).equals(HOBJ))
             {
@@ -436,6 +462,6 @@ class Instruction
                 }
             }
 		}
-        return new Instruction(Command.BADINSTRUCTION, "", -1);
+        return new Instruction(Command.BADINSTRUCTION, "", -1);  //Any other amount of tokens is a bad instruction.
     }
 }
