@@ -1,10 +1,10 @@
            sleep
 read lobj
 read lobj 1
-write lobj 10
+write Lobj 10
 write lobj
 
 write hobj 322 323
-read hobj
+read Hobj
 write hobj 235435
 read                lobj 

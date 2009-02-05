@@ -69,6 +69,7 @@ class ReferenceMonitor
      */
     public synchronized int executeInstruction(String name, Instruction instr)
     {
+    	assert (instr.getCommand() != Command.SLEEP) : "Sleep instruction passed to reference monitor!";
         SecurityLevel subjectLevel = subjectLevels.get(name);
         SecurityLevel objectLevel = objectLevels.get(instr.getObjectName());
         int value = 0; //default for bad instruction
@@ -98,9 +99,6 @@ class ReferenceMonitor
                 }
                 else
                    System.out.println("Access Denied.");
-                break;
-        
-            case SLEEP: System.out.println(name + " sleeping.  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%GETOUTAHERE%%%%%%%%%%%%%%%%%%%%%%%%%%%");
                 break;
 
             default: System.out.println(name + " gave bad instruction.");
@@ -141,7 +139,7 @@ class ReferenceMonitor
      */
     public void addObjectLevel(String name, SecurityLevel s)
     {
-        objectLevels.put(name, s);
+        objectLevels.put(name.toLowerCase(), s);
     }
 
     /**
@@ -152,12 +150,14 @@ class ReferenceMonitor
      */
     public SecurityLevel getObjectLevel(String name)
     {
+    	name = name.toLowerCase();
     	assert objectLevels.get(name) != null : "No object mapped to key \"" + name + "\".";
     	return objectLevels.get(name);
     }
 
     /**
-     * Instructs underlying object manager to create a new object.
+     * Instructs underlying object manager to create a new object. 
+     * Object names are not case sensitive and are set to all lower case.
      * @param name object's name
      * @param value object's value
      */
@@ -358,7 +358,18 @@ class SecureSubject extends Thread
 
         for(Instruction i: instructions)
         {
-            int value = referenceMonitor.executeInstruction(name, i);
+        	if(i.getCommand() == Command.SLEEP)
+        	{
+				try {
+					Thread.sleep(500);	//current thread sleeps .5 seconds
+				} catch (InterruptedException e) {					
+					//do nothing, interruption of sleep is of no concern for these threads
+				}
+			}
+        	else
+        	{
+        		int value = referenceMonitor.executeInstruction(name, i);
+        	}
         }
     }
 }
