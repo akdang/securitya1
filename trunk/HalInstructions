@@ -1,10 +1,10 @@
            sleep
-read lobj
-read lobj 1
-write lobj 10
-write lobj
-
-write hobj 322 323
+           
+bad2
+bad3 instr
+bad4 instr 4     
+read lobj  
+write lobj 10  
+four tokens are here
 read hobj
 write hobj 999999
-read                lobj 
