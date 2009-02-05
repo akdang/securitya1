@@ -30,7 +30,7 @@ public class ConcSecureSystem
 		rm.createNewObject("lobj", 0);
 		rm.addObjectLevel("lobj", SecurityLevel.LOW);
 	
-	    //lyle.start();
+	    lyle.start();
 		hal.start();
     }
 }
